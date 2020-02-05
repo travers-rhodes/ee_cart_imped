@@ -12,5 +12,6 @@
   <url>http://ros.org/wiki/ee_cart_imped_launch</url>
   <depend>ee_cart_imped_action</depend>
   <depend>ee_cart_imped_control</depend>
+  <buildtool_depend>catkin</buildtool_depend>
 
 </package>

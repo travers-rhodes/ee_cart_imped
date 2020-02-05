@@ -505,7 +505,7 @@ void EECartImpedControlClass::stopping() {
 
 
 /// Register controller to pluginlib
-PLUGINLIB_DECLARE_CLASS(ee_cart_imped_control, EECartImpedControlPlugin,
+PLUGINLIB_EXPORT_CLASS(
 			ee_cart_imped_control_ns::EECartImpedControlClass,
 			pr2_controller_interface::Controller)
 
