@@ -19,7 +19,7 @@
   <depend>geometry_msgs</depend>
   <depend>eigen</depend>
   <depend>kdl</depend>
-  <depend>pr2_controller_manager</depend>
+  <depend>controller_manager</depend>
   <depend>controller_interface</depend>
   <depend>pr2_mechanism_model</depend>
   <depend>pluginlib</depend>

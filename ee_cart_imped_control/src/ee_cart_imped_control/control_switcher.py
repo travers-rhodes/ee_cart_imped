@@ -2,7 +2,7 @@
 import roslib
 roslib.load_manifest('ee_cart_imped_control')
 import rospy
-import pr2_controller_manager.pr2_controller_manager_interface
+import controller_manager.controller_manager_interface
 
 class PR2CMClient:
     '''
@@ -30,12 +30,12 @@ class PR2CMClient:
         @param arm_name: the arm to control.  Must be 'right_arm' or 'left_arm'
         '''
         rospy.logdebug('Starting ee_cart_imped controller on '+ arm_name)
-        status = pr2_controller_manager.pr2_controller_manager_interface.stop_controller(arm_name[0]+'_arm_controller')
-        status = pr2_controller_manager.pr2_controller_manager_interface.stop_controller\
+        status = controller_manager.controller_manager_interface.stop_controller(arm_name[0]+'_arm_controller')
+        status = controller_manager.controller_manager_interface.stop_controller\
             (arm_name[0]+'_arm_cartesian_trajectory_controller')
-        status = pr2_controller_manager.pr2_controller_manager_interface.stop_controller\
+        status = controller_manager.controller_manager_interface.stop_controller\
             (arm_name[0]+'_arm_cartesian_pose_controller')
-        status = pr2_controller_manager.pr2_controller_manager_interface.start_controller\
+        status = controller_manager.controller_manager_interface.start_controller\
             (arm_name[0]+'_arm_cart_imped_controller')
         rospy.logdebug('Controller started')
         return status
@@ -49,12 +49,12 @@ class PR2CMClient:
         @param arm_name: the arm to control.  Must be 'right_arm' or 'left_arm'
         '''
         rospy.logdebug('starting cartesian controller on '+ arm_name)
-        status = pr2_controller_manager.pr2_controller_manager_interface.stop_controller\
+        status = controller_manager.controller_manager_interface.stop_controller\
             (arm_name[0]+'_arm_cart_imped_controller')
-        status = pr2_controller_manager.pr2_controller_manager_interface.start_controller(arm_name[0]+'_arm_controller')
-        status = pr2_controller_manager.pr2_controller_manager_interface.stop_controller\
+        status = controller_manager.controller_manager_interface.start_controller(arm_name[0]+'_arm_controller')
+        status = controller_manager.controller_manager_interface.stop_controller\
             (arm_name[0]+'_arm_cartesian_trajectory_controller')
-        status = pr2_controller_manager.pr2_controller_manager_interface.stop_controller\
+        status = controller_manager.controller_manager_interface.stop_controller\
             (arm_name[0]+'_arm_cartesian_pose_controller')
         rospy.logdebug('Controller started')
         return status
