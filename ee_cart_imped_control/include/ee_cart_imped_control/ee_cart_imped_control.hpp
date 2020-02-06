@@ -1,7 +1,8 @@
 #ifndef __EE_CART_IMPED_CONTROL_HPP__
 #define __EE_CART_IMPED_CONTROL_HPP__
 
-#include <pr2_controller_interface/controller.h>
+#include <controller_interface/controller.h>
+#include <hardware_interface/joint_command_interface.h>
 #include <pr2_mechanism_model/chain.h>
 #include <pr2_mechanism_model/robot.h>
 
@@ -38,7 +39,7 @@ namespace ee_cart_imped_control_ns {
    * action wrapper, 
    *<A href=http://www.ros.org/wiki/ee_cart_imped_action>EECartImpedAction</A>.
    */
-  class EECartImpedControlClass: public pr2_controller_interface::Controller {
+  class EECartImpedControlClass: public controller_interface::Controller<hardware_interface::EffortJointInterface> {
   private:
     
     /// The current robot state 
@@ -236,11 +237,11 @@ namespace ee_cart_imped_control_ns {
      * Uses EECartImpedControlClass::sampleInterpolation to
      * find the point that should be achieved on the current timestep.
      * Converts this point (which is in Cartesian coordinates) to joint
-     * angles and uses a PD update (in the case of stiffness) to send
-     * to the joints the correct force.
+     * angles and uses a PD update (in the case of stiffness) to update 
+     * the joint array values to the correct force.
      *
      */
-    void update();
+    void update(const ros::Time& time, const ros::Duration& period);
 
     /**
      * \brief Controller stopping in realtime

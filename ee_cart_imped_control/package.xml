@@ -20,7 +20,7 @@
   <depend>eigen</depend>
   <depend>kdl</depend>
   <depend>pr2_controller_manager</depend>
-  <depend>pr2_controller_interface</depend>
+  <depend>controller_interface</depend>
   <depend>pr2_mechanism_model</depend>
   <depend>pluginlib</depend>
   <depend>actionlib</depend>
@@ -30,7 +30,7 @@
 
 
   <export>
-    <pr2_controller_interface plugin="${prefix}/controller_plugins.xml" />
+    <controller_interface plugin="${prefix}/controller_plugins.xml" />
     <rosdoc config="rosdoc.yaml"/>
   </export>
 </package>

@@ -340,7 +340,7 @@ void EECartImpedControlClass::starting() {
   desired_poses_box_.set(hold_traj_ptr);
 }
 
-void EECartImpedControlClass::update()
+void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration& period)
 {
     last_time_ = robot_state_->getTime();
 
@@ -505,7 +505,5 @@ void EECartImpedControlClass::stopping() {
 
 
 /// Register controller to pluginlib
-PLUGINLIB_EXPORT_CLASS(
-			ee_cart_imped_control_ns::EECartImpedControlClass,
-			pr2_controller_interface::Controller)
+PLUGINLIB_EXPORT_CLASS(ee_cart_imped_control_ns::EECartImpedControlClass, controller_interface::ControllerBase)
 

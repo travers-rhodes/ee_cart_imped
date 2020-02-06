@@ -8,12 +8,17 @@ project(ee_cart_imped_control)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
-  pr2_controller_interface
+  controller_interface
   ee_cart_imped_msgs
+  pluginlib
   )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+find_package(Eigen3 REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIR})
+add_definitions(${EIGEN_DEFINITIONS})
+
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
