@@ -1,9 +1,12 @@
-//For class and function comments, see 
-//include/ee_cart_imped_control/ee_cart_imped_control.hpp
-//or the API docs
-//
-//The structure of this code borrows from the Realtime controller
-//KDL tutorial and the joint trajectory spline controller
+// For class and function comments, see 
+// include/ee_cart_imped_control/ee_cart_imped_control.hpp
+// or the API docs
+// 
+// The structure of this code borrows from the Realtime controller
+// KDL tutorial and the joint trajectory spline controller
+
+// A modern example of this type of file is available at
+// https://github.com/ros-controls/ros_controllers/blob/melodic-devel/effort_controllers/src/joint_position_controller.cpp
 
 #include "ee_cart_imped_control/ee_cart_imped_control.hpp"
 #include <pluginlib/class_list_macros.h>
@@ -22,7 +25,6 @@ double EECartImpedControlClass::linearlyInterpolate(double time,
 
 ee_cart_imped_msgs::StiffPoint 
 EECartImpedControlClass::sampleInterpolation() {
-
   boost::shared_ptr<const EECartImpedData> desired_poses_ptr;
   desired_poses_box_.get(desired_poses_ptr);
   if (!desired_poses_ptr) {
@@ -169,7 +171,7 @@ void EECartImpedControlClass::commandCB
 (const ee_cart_imped_msgs::EECartImpedGoalConstPtr &msg) {
   if ((msg->trajectory).empty()) {
     //stop the controller
-    starting();
+    hold_current_pose();
     return;
   }
   //this is a new goal
@@ -177,7 +179,7 @@ void EECartImpedControlClass::commandCB
     (new EECartImpedData());
   if (!new_traj_ptr) {
     ROS_ERROR("Null new trajectory.");
-    starting();
+    hold_current_pose();
     return;
   }
     
@@ -202,7 +204,7 @@ void EECartImpedControlClass::commandCB
   }
   if (!new_traj_ptr) {
     ROS_ERROR("Null new trajectory after filling.");
-    starting();
+    hold_current_pose();
     return;
   }
   new_traj.starting_time = ros::Time::now();
@@ -288,7 +290,11 @@ bool EECartImpedControlClass::init(pr2_mechanism_model::RobotState *robot,
     return true;
 }
 
-void EECartImpedControlClass::starting() {
+//
+// This function creates the first command to the robot which is the robot's current position
+// And asks the robot to hold this position
+//  
+void EECartImpedControlClass::hold_current_pose() {
   // Get the current joint values to compute the initial tip location.
   KDL::Frame init_pos;
   KDL::JntArray q0(kdl_chain_.getNrOfJoints());
@@ -499,11 +505,23 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
     updates_++;
 }
 
-void EECartImpedControlClass::stopping() {
-  starting();
+void EECartImpedControlClass::starting(const ros::Time& time) {
+  hold_current_pose();
 }
 
+void EECartImpedControlClass::stopping(const ros::Time& time) {
+  hold_current_pose();
+}
+EECartImpedControlClass::EECartImpedControlClass() {}
+EECartImpedControlClass::~EECartImpedControlClass() {}
+void EECartImpedControlClass::waiting(const ros::Time& /*time*/) {}
+void EECartImpedControlClass::aborting(const ros::Time& /*time*/) {}
+bool EECartImpedControlClass::initRequest(hardware_interface::RobotHW* robot_hw,
+               ros::NodeHandle&             root_nh,
+               ros::NodeHandle&             controller_nh,
+               ClaimedResources&            claimed_resources) {}
+bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface* /*hw*/, ros::NodeHandle& /*controller_nh*/) {return true;}
+bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface* /*hw*/, ros::NodeHandle& /*root_nh*/, ros::NodeHandle& /*controller_nh*/) {return true;}
 
 /// Register controller to pluginlib
 PLUGINLIB_EXPORT_CLASS(ee_cart_imped_control_ns::EECartImpedControlClass, controller_interface::ControllerBase)
-

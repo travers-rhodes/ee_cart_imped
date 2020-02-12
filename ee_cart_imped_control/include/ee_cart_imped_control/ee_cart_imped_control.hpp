@@ -204,7 +204,28 @@ namespace ee_cart_imped_control_ns {
     ///The number of updates to the joint position
     //Referenced only in updates
     int updates_;
+
+    /**
+     * Sets the desired
+     * position and orientation to be the current position and orientation
+     * and sets the joints to have maximum stiffness so that they hold
+     * their current position.
+     */
+    void hold_current_pose();
+
   public:
+
+    EECartImpedControlClass();
+    ~EECartImpedControlClass();
+    void waiting(const ros::Time& /*time*/);
+    void aborting(const ros::Time& /*time*/);
+    bool initRequest(hardware_interface::RobotHW* robot_hw,
+                   ros::NodeHandle&             root_nh,
+                   ros::NodeHandle&             controller_nh,
+                   ClaimedResources&            claimed_resources);
+    bool init(hardware_interface::EffortJointInterface* /*hw*/, ros::NodeHandle& /*controller_nh*/);
+    bool init(hardware_interface::EffortJointInterface* /*hw*/, ros::NodeHandle& /*root_nh*/, ros::NodeHandle& /*controller_nh*/);
+
     /**
      * \brief Controller initialization in non-realtime
      *
@@ -228,7 +249,7 @@ namespace ee_cart_imped_control_ns {
      * and sets the joints to have maximum stiffness so that they hold
      * their current position.
      */
-    void starting();
+    void starting(const ros::Time& time);
     
     /**
      * \brief Controller update loop in realtime
@@ -241,17 +262,16 @@ namespace ee_cart_imped_control_ns {
      * the joint array values to the correct force.
      *
      */
-    void update(const ros::Time& time, const ros::Duration& period);
+    void update(const ros::Time& time, const ros::Duration& period) override;
 
     /**
      * \brief Controller stopping in realtime
      *
-     * Calls EECartImpedControlClass::starting() to lock the joints into
+     * Calls EECartImpedControlClass::hold_current_pose() to lock the joints into
      * their current position.
      *
      */
-    void stopping();
-    
+    void stopping(const ros::Time& time);
   };
 }
 

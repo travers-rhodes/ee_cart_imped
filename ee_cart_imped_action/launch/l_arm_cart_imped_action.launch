@@ -1,8 +1,13 @@
+<?xml version="1.0"?>
+<!-- Start the left arm controller and then also start an action service to communicate with that controller 
+     The name of the controller we started is "l_arm_cart_imped_controller" and we're starting this action service in the same namespace-->
 <launch>
 	<!--start the controller-->
-	<include file="$(find ee_cart_imped_control)/launch/l_arm_cart_imped_controller.launch"/>
+  <include file="$(find ee_cart_imped_control)/launch/l_arm_cart_imped_controller.launch"/>
+
 	<!--start the action server-->
 	<group ns="l_arm_cart_imped_controller">
+         <rosparam file="$(find ee_cart_imped_control)/pr2_arms_cart_imped_controller.yaml" command="load" />
 	       <node pkg="ee_cart_imped_action" name="l_arm_cart_imped_action_node" type="ee_cart_imped_action" output="screen"/>
 	</group>
 </launch>
