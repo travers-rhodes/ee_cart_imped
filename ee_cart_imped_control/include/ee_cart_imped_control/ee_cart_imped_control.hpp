@@ -214,18 +214,6 @@ namespace ee_cart_imped_control_ns {
     void hold_current_pose();
 
   public:
-
-    EECartImpedControlClass();
-    ~EECartImpedControlClass();
-    void waiting(const ros::Time& /*time*/);
-    void aborting(const ros::Time& /*time*/);
-    bool initRequest(hardware_interface::RobotHW* robot_hw,
-                   ros::NodeHandle&             root_nh,
-                   ros::NodeHandle&             controller_nh,
-                   ClaimedResources&            claimed_resources);
-    bool init(hardware_interface::EffortJointInterface* /*hw*/, ros::NodeHandle& /*controller_nh*/);
-    bool init(hardware_interface::EffortJointInterface* /*hw*/, ros::NodeHandle& /*root_nh*/, ros::NodeHandle& /*controller_nh*/);
-
     /**
      * \brief Controller initialization in non-realtime
      *

@@ -512,16 +512,6 @@ void EECartImpedControlClass::starting(const ros::Time& time) {
 void EECartImpedControlClass::stopping(const ros::Time& time) {
   hold_current_pose();
 }
-EECartImpedControlClass::EECartImpedControlClass() {}
-EECartImpedControlClass::~EECartImpedControlClass() {}
-void EECartImpedControlClass::waiting(const ros::Time& /*time*/) {}
-void EECartImpedControlClass::aborting(const ros::Time& /*time*/) {}
-bool EECartImpedControlClass::initRequest(hardware_interface::RobotHW* robot_hw,
-               ros::NodeHandle&             root_nh,
-               ros::NodeHandle&             controller_nh,
-               ClaimedResources&            claimed_resources) {}
-bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface* /*hw*/, ros::NodeHandle& /*controller_nh*/) {return true;}
-bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface* /*hw*/, ros::NodeHandle& /*root_nh*/, ros::NodeHandle& /*controller_nh*/) {return true;}
 
 /// Register controller to pluginlib
 PLUGINLIB_EXPORT_CLASS(ee_cart_imped_control_ns::EECartImpedControlClass, controller_interface::ControllerBase)
