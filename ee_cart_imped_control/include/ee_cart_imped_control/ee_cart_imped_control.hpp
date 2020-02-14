@@ -46,12 +46,10 @@ namespace ee_cart_imped_control_ns {
     //(to get the time stamp)
     // Read-only after initialization
     pr2_mechanism_model::RobotState* robot_state_;
+
+    // The names of all the joints
+    std::vector<std::string
     
-    /// The chain of links and joints in PR2 language for reference and commanding
-    pr2_mechanism_model::Chain chain_;
-    /// The chain of links and joints in PR2 language for reference only
-    //Read-only after initialization
-    pr2_mechanism_model::Chain read_only_chain_;
     /// The chain of links and joints in KDL language
     // Read-only after initialization
     KDL::Chain kdl_chain_;
@@ -227,7 +225,7 @@ namespace ee_cart_imped_control_ns {
      * @return True on successful initialization, false otherwise
      *
      */
-    bool init(pr2_mechanism_model::RobotState *robot,
+    bool init(hardware_interface::RobotHW *robot,
 	      ros::NodeHandle &n);
     /**
      * \brief Controller startup in realtime

@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
   controller_interface
   ee_cart_imped_msgs
   pluginlib
+  pr2_mechanism_model
   )
 
 ## System dependencies are found with CMake's conventions
