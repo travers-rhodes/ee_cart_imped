@@ -14,6 +14,8 @@
 #include <kdl/jacobian.hpp>
 #include <kdl/jntarray.hpp>
 
+#include <kdl_parser/kdl_parser.hpp>
+
 #include <realtime_tools/realtime_publisher.h>
 #include <realtime_tools/realtime_box.h>
 
@@ -42,13 +44,9 @@ namespace ee_cart_imped_control_ns {
   class EECartImpedControlClass: public controller_interface::Controller<hardware_interface::EffortJointInterface> {
   private:
     
-    /// The current robot state 
-    //(to get the time stamp)
-    // Read-only after initialization
-    pr2_mechanism_model::RobotState* robot_state_;
-
-    // The names of all the joints
-    std::vector<std::string
+    /// The interface to the robot hardware
+    hardware_interface::EffortJointInterface* hardware_interface_;
+    std::vector<hardware_interface::JointHandle> joints_;
     
     /// The chain of links and joints in KDL language
     // Read-only after initialization
@@ -191,7 +189,7 @@ namespace ee_cart_imped_control_ns {
      * the joints should attempt to achieve on this timestep.
      *
      */
-    ee_cart_imped_msgs::StiffPoint sampleInterpolation();
+    ee_cart_imped_msgs::StiffPoint sampleInterpolation(const ros::Time& time);
     
     ///State publisher, published every 10 updates
     boost::scoped_ptr<
@@ -209,7 +207,9 @@ namespace ee_cart_imped_control_ns {
      * and sets the joints to have maximum stiffness so that they hold
      * their current position.
      */
-    void hold_current_pose();
+    void hold_current_pose(const ros::Time& time);
+
+    bool constructKDLChain(std::string root, std::string tip, std::string robot_desc_string);
 
   public:
     /**
@@ -225,7 +225,7 @@ namespace ee_cart_imped_control_ns {
      * @return True on successful initialization, false otherwise
      *
      */
-    bool init(hardware_interface::RobotHW *robot,
+    bool init(hardware_interface::EffortJointInterface *robot,
 	      ros::NodeHandle &n);
     /**
      * \brief Controller startup in realtime

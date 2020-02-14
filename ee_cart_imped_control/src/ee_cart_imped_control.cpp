@@ -170,7 +170,7 @@ void EECartImpedControlClass::commandCB
 (const ee_cart_imped_msgs::EECartImpedGoalConstPtr &msg) {
   if ((msg->trajectory).empty()) {
     //stop the controller
-    ros::Time time_now = ros::Time.now();
+    ros::Time time_now = ros::Time::now();
     hold_current_pose(time_now);
     return;
   }
@@ -179,7 +179,7 @@ void EECartImpedControlClass::commandCB
     (new EECartImpedData());
   if (!new_traj_ptr) {
     ROS_ERROR("Null new trajectory.");
-    ros::Time time_now = ros::Time.now();
+    ros::Time time_now = ros::Time::now();
     hold_current_pose(time_now);
     return;
   }
@@ -188,8 +188,11 @@ void EECartImpedControlClass::commandCB
   KDL::Frame init_pos;
   KDL::JntArray q0(kdl_chain_.getNrOfJoints());
   KDL::ChainFkSolverPos_recursive fksolver(kdl_chain_);
-  //Operation is in fact const (although not listed as such)
-  read_only_chain_.getPositions(q0);    
+
+  for (int i = 0; i < joints_.size(); i++) {
+    q0(i) = joints_[i].getPosition();    
+  }
+
   fksolver.JntToCart(q0, init_pos);
 
   new_traj.initial_point.pose.position.x = init_pos.p(0);
@@ -205,7 +208,7 @@ void EECartImpedControlClass::commandCB
   }
   if (!new_traj_ptr) {
     ROS_ERROR("Null new trajectory after filling.");
-    ros::Time time_now = ros::Time.now();
+    ros::Time time_now = ros::Time::now();
     hold_current_pose(time_now);
     return;
   }
@@ -213,7 +216,7 @@ void EECartImpedControlClass::commandCB
   desired_poses_box_.set(new_traj_ptr);
 }
 
-bool EECartImpedControlClass::init(hardware_interface::RobotHW *robot,
+bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *robot,
     ros::NodeHandle &n) {
   ROS_INFO("Started initializing control class");
   std::string root_name, tip_name;
@@ -232,7 +235,7 @@ bool EECartImpedControlClass::init(hardware_interface::RobotHW *robot,
   }
 
   // Store the hardware_interface handle for later use (to get time)
-  robot_state_ = robot;
+  hardware_interface_ = robot;
 
   ROS_INFO("Constructing KDL chain");
   // Constructs kdl_chain_ parameter 
@@ -240,7 +243,7 @@ bool EECartImpedControlClass::init(hardware_interface::RobotHW *robot,
   n.getParam("robot_description", robot_desc_string);
   if (!constructKDLChain(root_name, tip_name, robot_desc_string)) {
     ROS_ERROR("Couldn't construct chain from %s to %s.)",
-        root, tip);
+        root_name.c_str(), tip_name.c_str());
     return false;
   }
 
@@ -295,14 +298,14 @@ void EECartImpedControlClass::hold_current_pose(const ros::Time& current_time) {
   KDL::Frame init_pos;
   KDL::JntArray q0(kdl_chain_.getNrOfJoints());
   KDL::ChainFkSolverPos_recursive fksolver(kdl_chain_);
-  //this operation is not listed as const but is in fact
-  //in the current implementation
-  read_only_chain_.getPositions(q0);
+  for (int i = 0; i < joints_.size(); i++) {
+    q0(i) = joints_[i].getPosition();    
+  }
   fksolver.JntToCart(q0, init_pos);
 
 
   // Also reset the time-of-last-servo-cycle
-  last_time_ = time; 
+  last_time_ = current_time; 
   ///Hold current position trajectory
   boost::shared_ptr<EECartImpedData> hold_traj_ptr(new EECartImpedData());
   if (!hold_traj_ptr) {
@@ -347,8 +350,13 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
   last_time_ = time;
 
   // Get the current joint positions and velocities
-  chain_.getPositions(q_);
-  chain_.getVelocities(qdot_);
+  // q_ and qdot_ are already initialized to the correct sizes
+  for (int i = 0; i < joints_.size(); i++)
+  {
+    q_(i) = joints_[i].getPosition();
+    qdot_.q(i) = joints_[i].getPosition();
+    qdot_.qdot(i) = joints_[i].getVelocity();
+  }
 
   // Compute the forward kinematics and Jacobian (at this location)
   jnt_to_pose_solver_->JntToCart(q_, x_);
@@ -447,7 +455,10 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
   }
 
   // And finally send these torques out
-  chain_.setEfforts(tau_);
+  for (int i = 0; i < joints_.size(); i++)
+  {
+    joints_[i].setCommand(tau_(i));
+  }
 
   //publish the current state
   if (!(updates_ % 10)) {
@@ -479,7 +490,14 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
         wrench_or_stiffness.torque.y = F_(4);
       controller_state_publisher_->msg_.actual_pose.
         wrench_or_stiffness.torque.z = F_(5);
-      chain_.getEfforts(tau_act_);
+
+      // read the actual current effort
+      // this could be pulled into the loop below, but who cares.
+      for (int i = 0; i < joints_.size(); i++)
+      {
+        tau_act_(i) = joints_[i].getEffort();
+      }
+
       double eff_err = 0;
       for (unsigned int i = 0; i < kdl_chain_.getNrOfJoints(); i++) {
         eff_err += (tau_(i) - tau_act_(i))*(tau_(i) - tau_act_(i));
@@ -532,6 +550,17 @@ bool EECartImpedControlClass::constructKDLChain(std::string root, std::string ti
         root.c_str(), tip.c_str());
     return false;
   }
+
+  // Pulls out all the JointHandles and save them to our vector
+  joints_.clear();
+  for (size_t i=0; i<kdl_chain_.getNrOfSegments(); i++){
+    if (kdl_chain_.getSegment(i).getJoint().getType() != KDL::Joint::None){ 
+      hardware_interface::JointHandle jnt = hardware_interface_->getHandle(kdl_chain_.getSegment(i).getJoint().getName());
+      joints_.push_back(jnt);
+    }
+  }
+  ROS_DEBUG("Added %i joints", int(joints_.size()));
+
   return true;
 }
 
