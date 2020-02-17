@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!-- Start the arm controller and then also start an action service to communicate with that controller 
+     The name of the controller we started is "gen3_cart_imped_controller" and we're starting this action service in the same namespace-->
+<launch>
+	<!--start the controller-->
+    <!--<include file="$(find ee_cart_imped_control)/launch/gen3_cart_imped_controller.launch"/>-->
+
+	<!--start the action server-->
+	<group ns="gen3_cart_imped_controller">
+    <rosparam file="$(find ee_cart_imped_action)/config/gen3_cart_imped_controller.yaml" command="load" />
+	  <node pkg="ee_cart_imped_action" name="gen3_cart_imped_action_node" type="ee_cart_imped_action" output="screen"/>
+	</group>
+</launch>

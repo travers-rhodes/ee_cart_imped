@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- Load $(find ee_cart_imped_control)pr2_arms_cart_imped_controller parameters to the server 
+     and then spawn the controller given by the newly uploaded parameter "l_arm_cart_imped_controller" from that file -->
+<launch>
+  <rosparam file="$(find ee_cart_imped_control)/config/gen3_cart_imped_controller.yaml" command="load" />
+  <node pkg="controller_manager" type="unspawner" args="gen3_arm_controller"  name="l_arm_stopper"/>
+  <node pkg="controller_manager" type="spawner" args="gen3_cart_imped_controller" name="gen3_cart_imped_controller_spawner" output="screen"/>
+</launch>

@@ -24,13 +24,6 @@
 #include <ee_cart_imped_msgs/EECartImpedGoal.h>
 #include <ee_cart_imped_msgs/StiffPoint.h>
 
-//Doxygen doesn't like these comments for some reason...
-///Maximum stiffness for translation
-#define MAX_STIFFNESS 1000.0
-
-///Maximum stiffness for rotation
-#define ACCEPTABLE_ROT_STIFFNESS 100.0
-
 namespace ee_cart_imped_control_ns {
 
   /**
@@ -95,6 +88,11 @@ namespace ee_cart_imped_control_ns {
     /// Jacobian
     // Referenced only in update loop
     KDL::Jacobian  J_;         
+
+    // The default stiffness (used when controller freezes)
+    double default_stiffness_;
+    // The default rotational stiffness (used when controller freezes)
+    double default_rotational_stiffness_;
 
     ///The time at which the goal we saw on the last iteration was started
     //Referenced only in update loop

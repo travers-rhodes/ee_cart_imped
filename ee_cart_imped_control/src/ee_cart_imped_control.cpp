@@ -233,6 +233,50 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
         n.getNamespace().c_str());
     return false;
   }
+  std::vector<double> cartesian_dampening;
+  if (!n.getParam("cartesian_dampening", cartesian_dampening))
+  {
+    double default_cartesian_dampening = 10;
+    ROS_WARN("No cartesian_dampening given in namespace: %s. Defaulting to %f.)",
+        n.getNamespace().c_str(), default_cartesian_dampening);
+    cartesian_dampening.clear();
+    for (int i = 0; i< 3; i++) {
+      cartesian_dampening.push_back(default_cartesian_dampening);
+    }
+  }
+  if (cartesian_dampening.size() != 3) {
+    ROS_ERROR("cartesian_dampening must be a vector of length 3");
+    return false;
+  }
+  std::vector<double> euler_angle_dampening;
+  if (!n.getParam("euler_angle_dampening", euler_angle_dampening))
+  {
+    double default_euler_angle_dampening = 1;
+    ROS_WARN("No euler_angle_dampening given in namespace: %s. Defaulting to %f.)",
+        n.getNamespace().c_str(), default_euler_angle_dampening);
+    euler_angle_dampening.clear();
+    for (int i = 0; i< 3; i++) {
+      euler_angle_dampening.push_back(default_euler_angle_dampening);
+    }
+  }
+  if (euler_angle_dampening.size() != 3) {
+    ROS_ERROR("euler_angle_dampening must be a vector of length 3");
+    return false;
+  }
+  if (!n.getParam("default_stiffness", default_stiffness_))
+  {
+    double default_default_stiffness = 1000;
+    ROS_WARN("No default_stiffness given in namespace: %s. Defaulting to %f.)",
+        n.getNamespace().c_str(), default_default_stiffness);
+    default_stiffness_ = default_default_stiffness;
+  }
+  if (!n.getParam("default_rotational_stiffness", default_rotational_stiffness_))
+  {
+    double default_default_rotational_stiffness = 1000;
+    ROS_WARN("No default_rotational_stiffness given in namespace: %s. Defaulting to %f.)",
+        n.getNamespace().c_str(), default_default_rotational_stiffness);
+    default_rotational_stiffness_ = default_default_rotational_stiffness;
+  }
 
   // Store the hardware_interface handle for later use (to get time)
   hardware_interface_ = robot;
@@ -240,7 +284,7 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   ROS_INFO("Constructing KDL chain");
   // Constructs kdl_chain_ parameter 
   std::string robot_desc_string;
-  n.getParam("robot_description", robot_desc_string);
+  n.getParam("/robot_description", robot_desc_string);
   if (!constructKDLChain(root_name, tip_name, robot_desc_string)) {
     ROS_ERROR("Couldn't construct chain from %s to %s.)",
         root_name.c_str(), tip_name.c_str());
@@ -272,12 +316,12 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   updates_ = 0;
 
 
-  Kd_.vel(0) = 0.0;        // Translation x                                                   
-  Kd_.vel(1) = 0.0;        // Translation y
-  Kd_.vel(2) = 0.0;        // Translation z
-  Kd_.rot(0) = 0.0;        // Rotation x
-  Kd_.rot(1) = 0.0;        // Rotation y
-  Kd_.rot(2) = 0.0;        // Rotation z
+  Kd_.vel(0) = cartesian_dampening[0];        // Translation x                                                   
+  Kd_.vel(1) = cartesian_dampening[1];        // Translation y
+  Kd_.vel(2) = cartesian_dampening[2];        // Translation z
+  Kd_.rot(0) = euler_angle_dampening[0];        // Rotation x
+  Kd_.rot(1) = euler_angle_dampening[1];        // Rotation y
+  Kd_.rot(2) = euler_angle_dampening[2];        // Rotation z
 
   //Create a dummy trajectory
   boost::shared_ptr<EECartImpedData> dummy_ptr(new EECartImpedData());
@@ -322,12 +366,12 @@ void EECartImpedControlClass::hold_current_pose(const ros::Time& current_time) {
       (hold_traj.traj[0].pose.orientation.y), 
       (hold_traj.traj[0].pose.orientation.z), 
       (hold_traj.traj[0].pose.orientation.w));
-  hold_traj.traj[0].wrench_or_stiffness.force.x = MAX_STIFFNESS;
-  hold_traj.traj[0].wrench_or_stiffness.force.y = MAX_STIFFNESS;
-  hold_traj.traj[0].wrench_or_stiffness.force.z = MAX_STIFFNESS;
-  hold_traj.traj[0].wrench_or_stiffness.torque.x = ACCEPTABLE_ROT_STIFFNESS;
-  hold_traj.traj[0].wrench_or_stiffness.torque.y = ACCEPTABLE_ROT_STIFFNESS;
-  hold_traj.traj[0].wrench_or_stiffness.torque.z = ACCEPTABLE_ROT_STIFFNESS;
+  hold_traj.traj[0].wrench_or_stiffness.force.x = default_stiffness_;
+  hold_traj.traj[0].wrench_or_stiffness.force.y = default_stiffness_;
+  hold_traj.traj[0].wrench_or_stiffness.force.z = default_stiffness_;
+  hold_traj.traj[0].wrench_or_stiffness.torque.x = default_rotational_stiffness_;
+  hold_traj.traj[0].wrench_or_stiffness.torque.y = default_rotational_stiffness_;
+  hold_traj.traj[0].wrench_or_stiffness.torque.z = default_rotational_stiffness_;
   hold_traj.traj[0].isForceX = false;
   hold_traj.traj[0].isForceY = false;
   hold_traj.traj[0].isForceZ = false;
@@ -532,6 +576,11 @@ void EECartImpedControlClass::stopping(const ros::Time& time) {
 bool EECartImpedControlClass::constructKDLChain(std::string root, std::string tip, std::string robot_desc_string) {
   // Constructs the kdl chain
   KDL::Tree kdl_tree;
+  bool waitLoop = true;
+  while (waitLoop) {
+    ros::Duration(0.5).sleep();
+    ros::param::get("/WaitLoop", waitLoop);
+  }
   // kdl_parser from http://wiki.ros.org/kdl_parser/Tutorials/Start%20using%20the%20KDL%20parser
   if (!kdl_parser::treeFromString(robot_desc_string, kdl_tree)){
     ROS_ERROR("Could not convert robot_description string into kdl tree");
