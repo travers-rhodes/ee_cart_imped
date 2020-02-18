@@ -391,6 +391,7 @@ void EECartImpedControlClass::hold_current_pose(const ros::Time& current_time) {
 
 void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration& period)
 {
+  ROS_WARN_THROTTLE(1.0, "UpdateLoop: Update period is %f", (time-last_time_).toSec());
   last_time_ = time;
 
   // Get the current joint positions and velocities
