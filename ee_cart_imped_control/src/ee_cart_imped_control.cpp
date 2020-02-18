@@ -280,15 +280,55 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
 
   // Store the hardware_interface handle for later use (to get time)
   hardware_interface_ = robot;
+  
+  
+  urdf::Model urdf_robot;
+  // load urdf from "robot_description"
+  // TODO don't hard-code this string
+  urdf_robot.initParam("/robot_description");
 
   ROS_INFO("Constructing KDL chain");
-  // Constructs kdl_chain_ parameter 
+  // Constructs kdl_chain_ parameter and joints_ parameter
   std::string robot_desc_string;
   n.getParam("/robot_description", robot_desc_string);
   if (!constructKDLChain(root_name, tip_name, robot_desc_string)) {
     ROS_ERROR("Couldn't construct chain from %s to %s.)",
         root_name.c_str(), tip_name.c_str());
     return false;
+  }
+ 
+  // TODO: Pull this from KDLChain somehow
+  std::vector<std::string> joint_names = {
+    "joint_1",
+    "joint_2",
+    "joint_3",
+    "joint_4",
+    "joint_5",
+    "joint_6",
+    "joint_7"
+  };
+
+  for (int i = 0; i < joint_names.size(); i++)
+  {
+    joint_limits_interface::JointLimits limits;
+    std::shared_ptr<const urdf::Joint> urdf_joint = urdf_robot.getJoint(joint_names[i]);
+    const bool urdf_limits_ok = joint_limits_interface::getJointLimits(urdf_joint, limits);
+    // Populate joint limits from the ros parameter server
+    // Limits specified in the parameter server overwrite existing values in 'limits' 
+    // Limits not specified in the parameter server preserve their existing values
+    const bool rosparam_limits_ok = joint_limits_interface::getJointLimits(joint_names[i], n, limits);
+    limits_list_.push_back(limits);
+  }
+  
+  for (int i = 0; i < joint_names.size(); i++)
+  {
+    if (limits_list_[i].has_effort_limits) {
+      max_effort_.push_back(limits_list_[i].max_effort);
+    } else {
+      double default_effort_limit;
+      ROS_WARN("No effort limit found for joint %s, using default of %f.", joint_names[i].c_str(), default_effort_limit);
+      max_effort_.push_back(default_effort_limit);
+    }
   }
 
   ROS_INFO("Prepare svd calculator");
@@ -526,13 +566,26 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
            if (svd_.singularValues()[k] > 0.0001){
              // https://www.math.ucsd.edu/~sbuss/ResearchWeb/ikmethods/iksurvey.pdf
              // damped least squares
-             tau_(i) += svd_.matrixV()(i,k) * svd_.singularValues()[k]/(svd_.singularValues()[k]*svd_.singularValues()[k]+10) * svd_.matrixU()(j,k) * F_(j);
+             tau_(i) += svd_.matrixV()(i,k) * svd_.singularValues()[k]/(svd_.singularValues()[k]*svd_.singularValues()[k]+1) * svd_.matrixU()(j,k) * F_(j);
            }  
         }
       }
     }
   }
 
+  double joint_dampening = 1;
+  // Joint-level dampening
+  for (int i = 0; i < joints_.size(); i++)
+  {
+    tau_(i) -= qdot_.qdot(i) * joint_dampening;
+  }
+  
+  // Clamp torque (I think gazebo is just ignoring commands that are too large)
+  for (int i = 0; i < joints_.size(); i++)
+  {
+    tau_(i) = tau_(i) >  max_effort_[i] ?  max_effort_[i] : tau_(i);
+    tau_(i) = tau_(i) < -max_effort_[i] ? -max_effort_[i] : tau_(i);
+  }
 
   // And finally send these torques out
   for (int i = 0; i < joints_.size(); i++)
@@ -608,7 +661,7 @@ void EECartImpedControlClass::stopping(const ros::Time& time) {
 }
 
 // COPIED FROM pr2_mechanism_model::Chain
-// fills out kdl_chain_ variable
+// fills out kdl_chain_ variable and joints_ variable
 bool EECartImpedControlClass::constructKDLChain(std::string root, std::string tip, std::string robot_desc_string) {
   // Constructs the kdl chain
   KDL::Tree kdl_tree;

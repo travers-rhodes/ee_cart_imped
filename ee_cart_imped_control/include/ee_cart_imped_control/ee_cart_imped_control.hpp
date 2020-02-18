@@ -5,6 +5,9 @@
 #include <hardware_interface/joint_command_interface.h>
 #include <pr2_mechanism_model/chain.h>
 #include <pr2_mechanism_model/robot.h>
+#include <joint_limits_interface/joint_limits_interface.h>
+#include <joint_limits_interface/joint_limits_urdf.h>
+#include <joint_limits_interface/joint_limits_rosparam.h>
 
 #include <boost/scoped_ptr.hpp>
 #include <kdl/chain.hpp>
@@ -41,6 +44,10 @@ namespace ee_cart_imped_control_ns {
     /// The interface to the robot hardware
     hardware_interface::EffortJointInterface* hardware_interface_;
     std::vector<hardware_interface::JointHandle> joints_;
+    // (For gazebo especially) we need ot make sure our joint effort commands are valid
+    std::vector<joint_limits_interface::JointLimits> limits_list_;
+    // the max effort per joint
+    std::vector<double> max_effort_;
     
     /// The chain of links and joints in KDL language
     // Read-only after initialization
