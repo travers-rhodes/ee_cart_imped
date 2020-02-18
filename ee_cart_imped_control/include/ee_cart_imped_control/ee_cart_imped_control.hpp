@@ -13,6 +13,7 @@
 #include <kdl/chain.hpp>
 #include <kdl/chainjnttojacsolver.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
+#include <kdl/chaindynparam.hpp>
 #include <kdl/frames.hpp>
 #include <kdl/jacobian.hpp>
 #include <kdl/jntarray.hpp>
@@ -59,6 +60,13 @@ namespace ee_cart_imped_control_ns {
     /// KDL Solver performing the joint angles to Jacobian calculation
     // Referenced only in update loop
     boost::scoped_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver_;
+    boost::scoped_ptr<KDL::ChainDynParam> kdl_chain_dyn_param_;
+
+    /// KDL gravity compensation helpers
+    // gravity, relative to KDL chain base link
+    KDL::Vector grav_vector_; 
+    // Referenced only in update loop
+    KDL::JntArray  jnt_gravity_; 
     
     // The variables (which are declared as class variables
     // because they need to be pre-allocated, meaning we must

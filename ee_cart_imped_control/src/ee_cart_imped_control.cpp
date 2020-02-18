@@ -341,12 +341,16 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   jnt_to_pose_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
   jnt_to_jac_solver_.reset(new KDL::ChainJntToJacSolver(kdl_chain_));
 
+  grav_vector_ = KDL::Vector(0., 0., -9.81);
+  kdl_chain_dyn_param_.reset(new KDL::ChainDynParam(kdl_chain_, grav_vector_));
+
   // Resize (pre-allocate) the variables in non-realtime
   q_.resize(kdl_chain_.getNrOfJoints());
   qdot_.resize(kdl_chain_.getNrOfJoints());
   tau_.resize(kdl_chain_.getNrOfJoints());
   tau_act_.resize(kdl_chain_.getNrOfJoints());
   J_.resize(kdl_chain_.getNrOfJoints());
+  jnt_gravity_.resize(kdl_chain_.getNrOfJoints());
 
   subscriber_ = node_.subscribe("command", 1, &EECartImpedControlClass::commandCB, this);
   controller_state_publisher_.reset
@@ -573,11 +577,19 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
     }
   }
 
-  double joint_dampening = 1;
+  double joint_dampening = 0.5;
   // Joint-level dampening
   for (int i = 0; i < joints_.size(); i++)
   {
     tau_(i) -= qdot_.qdot(i) * joint_dampening;
+  }
+
+  // Gravity compensation
+  // https://answers.ros.org/question/286904/get-arm-gravity-compensation-joint-efforts-from-urdf-joint-positions-and-grav-vector/
+  kdl_chain_dyn_param_->JntToGravity(q_, jnt_gravity_);
+  for (int i = 0; i < joints_.size(); i++)
+  {
+    tau_(i) = tau_(i) + jnt_gravity_(i);
   }
   
   // Clamp torque (I think gazebo is just ignoring commands that are too large)
