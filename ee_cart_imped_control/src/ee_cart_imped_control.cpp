@@ -439,6 +439,10 @@ void EECartImpedControlClass::hold_current_pose(const ros::Time& current_time) {
 
 void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration& period)
 {
+  double prepare_time, their_ik_time, ik_time, gravity_time, after_time;
+  ros::Time start_time = ros::Time::now();
+  ros::Time end_time = ros::Time::now();
+  ros::Time very_start_time = start_time;
   ROS_WARN_THROTTLE(1.0, "UpdateLoop: Update period is %f", (time-last_time_).toSec());
   last_time_ = time;
 
@@ -543,8 +547,16 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
     F_(5) = -Kp_(5) * xerr_(5) - Kd_(5)*xdot_(5);
   }
 
+  end_time = ros::Time::now();
+  prepare_time = (end_time - start_time).toSec();
+  start_time = end_time;
+
   // Solve for position control for non-force-controlled joints
-  svd_.compute(J_.data, Eigen::ComputeFullU | Eigen::ComputeFullV);
+  // svd_.compute(J_.data, Eigen::ComputeThinU | Eigen::ComputeThinV);
+  
+  end_time = ros::Time::now();
+  their_ik_time = (end_time - start_time).toSec();
+  start_time = end_time;
 
   // Convert the force into a set of joint torques
   // tau_ is a vector of joint torques q1...qn
@@ -558,12 +570,13 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
     //position control on that dof
     tau_(i) = 0;
     for (unsigned int j = 0 ; j < 6 ; j++) {
-      if (isForceTorqueArray_[j])
+      if (true || isForceTorqueArray_[j])
       {
         tau_(i) += J_(j,i) * F_(j);
       }
       else
       {
+        ROS_ERROR("Should not get here. We have disabled ik for now");
         // svd_.singularValues.length is 6, since we have more joints than dof
         for (unsigned int k = 0; k < 6; k++)
         {
@@ -583,6 +596,10 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
   {
     tau_(i) -= qdot_.qdot(i) * joint_dampening;
   }
+  
+  end_time = ros::Time::now();
+  ik_time = (end_time - start_time).toSec();
+  start_time = end_time;
 
   // Gravity compensation
   // https://answers.ros.org/question/286904/get-arm-gravity-compensation-joint-efforts-from-urdf-joint-positions-and-grav-vector/
@@ -591,6 +608,10 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
   {
     tau_(i) = tau_(i) + jnt_gravity_(i);
   }
+  
+  end_time = ros::Time::now();
+  gravity_time = (end_time - start_time).toSec();
+  start_time = end_time;
   
   // Clamp torque (I think gazebo is just ignoring commands that are too large)
   for (int i = 0; i < joints_.size(); i++)
@@ -662,6 +683,11 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
     }
   }
   updates_++;
+  end_time = ros::Time::now();
+  after_time = (end_time - start_time).toSec();
+  
+  ROS_WARN_THROTTLE(0.1, "Total Time Guess: %f; Prepare: %f; Their IK: %f; IK: %f; Gravity: %f; After: %f",
+     (end_time - very_start_time).toSec(), prepare_time, their_ik_time, ik_time, gravity_time, after_time); 
 }
 
 void EECartImpedControlClass::starting(const ros::Time& time) {
