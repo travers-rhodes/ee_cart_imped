@@ -21,7 +21,6 @@
   <depend>kdl</depend>
   <depend>controller_manager</depend>
   <depend>controller_interface</depend>
-  <depend>pr2_mechanism_model</depend>
   <depend>pluginlib</depend>
   <depend>actionlib</depend>
   <depend>actionlib_msgs</depend>

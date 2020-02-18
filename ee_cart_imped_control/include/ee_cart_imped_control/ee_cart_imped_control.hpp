@@ -3,8 +3,7 @@
 
 #include <controller_interface/controller.h>
 #include <hardware_interface/joint_command_interface.h>
-#include <pr2_mechanism_model/chain.h>
-#include <pr2_mechanism_model/robot.h>
+#include <urdf/model.h>
 #include <joint_limits_interface/joint_limits_interface.h>
 #include <joint_limits_interface/joint_limits_urdf.h>
 #include <joint_limits_interface/joint_limits_rosparam.h>
