@@ -291,6 +291,10 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
     return false;
   }
 
+  ROS_INFO("Prepare svd calculator");
+  // VERY conservative here.
+  svd_.setThreshold(0.001);
+
 
   ROS_INFO("Convert chain to KDL chain");
   // Construct the kdl solvers in non-realtime
@@ -448,40 +452,55 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
 
   // F_ is a vector of forces/wrenches corresponding to x, y, z, tx,ty,tz,tw
   if (desiredPose.isForceX) {
+    isForceTorqueArray_[0] = true;
     F_(0) = Fdes_(0);
   } else {
+    isForceTorqueArray_[0] = false;
     F_(0) = -Kp_(0) * xerr_(0) - Kd_(0)*xdot_(0);
   }
 
   if (desiredPose.isForceY) {
+    isForceTorqueArray_[1] = true;
     F_(1) = Fdes_(1);
   } else {
+    isForceTorqueArray_[1] = false;
     F_(1) = -Kp_(1) * xerr_(1) - Kd_(1)*xdot_(1);
   }
 
   if (desiredPose.isForceZ) {
+    isForceTorqueArray_[2] = true;
     F_(2) = Fdes_(2);
   } else {
+    isForceTorqueArray_[2] = false;
     F_(2) = -Kp_(2) * xerr_(2) - Kd_(2)*xdot_(2);
   }
 
   if (desiredPose.isTorqueX) {
+    isForceTorqueArray_[3] = true;
     F_(3) = Fdes_(3);
   } else {
+    isForceTorqueArray_[3] = false;
     F_(3) = -Kp_(3) * xerr_(3) - Kd_(3)*xdot_(3);
   }
 
   if (desiredPose.isTorqueY) {
+    isForceTorqueArray_[4] = true;
     F_(4) = Fdes_(4);
   } else {
+    isForceTorqueArray_[4] = false;
     F_(4) = -Kp_(4) * xerr_(4) - Kd_(4)*xdot_(4);
   }
 
   if (desiredPose.isTorqueZ) {
+    isForceTorqueArray_[5] = true;
     F_(5) = Fdes_(5);
   } else {
+    isForceTorqueArray_[5] = false;
     F_(5) = -Kp_(5) * xerr_(5) - Kd_(5)*xdot_(5);
   }
+
+  // Solve for position control for non-force-controlled joints
+  svd_.compute(J_.data, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
   // Convert the force into a set of joint torques
   // tau_ is a vector of joint torques q1...qn
@@ -495,9 +514,25 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
     //position control on that dof
     tau_(i) = 0;
     for (unsigned int j = 0 ; j < 6 ; j++) {
-      tau_(i) += J_(j,i) * F_(j);
+      if (isForceTorqueArray_[j])
+      {
+        tau_(i) += J_(j,i) * F_(j);
+      }
+      else
+      {
+        // svd_.singularValues.length is 6, since we have more joints than dof
+        for (unsigned int k = 0; k < 6; k++)
+        {
+           if (svd_.singularValues()[k] > 0.0001){
+             // https://www.math.ucsd.edu/~sbuss/ResearchWeb/ikmethods/iksurvey.pdf
+             // damped least squares
+             tau_(i) += svd_.matrixV()(i,k) * svd_.singularValues()[k]/(svd_.singularValues()[k]*svd_.singularValues()[k]+10) * svd_.matrixU()(j,k) * F_(j);
+           }  
+        }
+      }
     }
   }
+
 
   // And finally send these torques out
   for (int i = 0; i < joints_.size(); i++)

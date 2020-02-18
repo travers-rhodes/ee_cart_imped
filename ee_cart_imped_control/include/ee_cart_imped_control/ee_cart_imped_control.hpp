@@ -15,6 +15,7 @@
 #include <kdl/jntarray.hpp>
 
 #include <kdl_parser/kdl_parser.hpp>
+#include <Eigen/SVD>
 
 #include <realtime_tools/realtime_publisher.h>
 #include <realtime_tools/realtime_box.h>
@@ -88,6 +89,12 @@ namespace ee_cart_imped_control_ns {
     /// Jacobian
     // Referenced only in update loop
     KDL::Jacobian  J_;         
+
+    Eigen::JacobiSVD<Eigen::MatrixXd, Eigen::HouseholderQRPreconditioner> svd_;
+
+    // whether the X,Y,Z (cartesian) and X,Y,Z (euler angles) values are specifying torque
+    // or whether we are in position control on that joint instead
+    std::array<bool,6> isForceTorqueArray_;
 
     // The default stiffness (used when controller freezes)
     double default_stiffness_;
