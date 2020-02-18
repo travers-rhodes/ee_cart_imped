@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
   controller_interface
   ee_cart_imped_msgs
   pluginlib
+  kdl_parser
   )
 
 ## System dependencies are found with CMake's conventions
