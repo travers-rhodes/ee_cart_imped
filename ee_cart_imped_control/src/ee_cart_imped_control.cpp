@@ -686,7 +686,7 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
   end_time = ros::Time::now();
   after_time = (end_time - start_time).toSec();
   
-  ROS_WARN_THROTTLE(0.1, "Total Time Guess: %f; Prepare: %f; Their IK: %f; IK: %f; Gravity: %f; After: %f",
+  ROS_DEBUG_THROTTLE(1, "Total Time Guess: %f; Prepare: %f; Their IK: %f; IK: %f; Gravity: %f; After: %f",
      (end_time - very_start_time).toSec(), prepare_time, their_ik_time, ik_time, gravity_time, after_time); 
 }
 
