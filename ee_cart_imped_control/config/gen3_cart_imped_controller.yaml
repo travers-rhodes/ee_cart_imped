@@ -2,8 +2,8 @@ gen3_cart_imped_controller:
   type: ee_cart_imped_control/EECartImpedControlPlugin
   root_name: base_link 
   tip_name: end_effector_link 
-  joint_dampening: 0
-  default_stiffness: 100
-  default_rotational_stiffness: 100
+  joint_dampening: 0.5
+  default_stiffness: 5000
+  default_rotational_stiffness: 5000
   cartesian_dampening: [0.05,0.05,0.05]
   euler_angle_dampening: [0.05,0.05,0.05]
