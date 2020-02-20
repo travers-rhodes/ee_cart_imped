@@ -117,6 +117,9 @@ namespace ee_cart_imped_control_ns {
     // The coefficient of the joint-level dampening term
     // (Maybe we can set this to zero because there's a lot of friction on joints)
     double joint_dampening_;
+    // Whether to use jacobian inverse (true) (slower) or the jacobian transpose 
+    // for dimensions with a target position instead of a target force 
+    bool use_jacobian_inverse_;
 
     ///The time at which the goal we saw on the last iteration was started
     //Referenced only in update loop

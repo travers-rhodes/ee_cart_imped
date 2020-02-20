@@ -284,6 +284,14 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
         n.getNamespace().c_str(), default_joint_dampening);
     joint_dampening_ = default_joint_dampening;
   }
+  
+  if (!n.getParam("use_jacobian_inverse", use_jacobian_inverse_))
+  {
+    bool default_use_jacobian_inverse= false;
+    ROS_WARN("No use_jacobian_inverse given in namespace: %s. Defaulting to %d.",
+        n.getNamespace().c_str(), default_use_jacobian_inverse);
+    use_jacobian_inverse_ = default_use_jacobian_inverse;
+  }
 
   // Store the hardware_interface handle for later use (to get time)
   hardware_interface_ = robot;
@@ -559,8 +567,11 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
   start_time = end_time;
 
   // Solve for position control for non-force-controlled joints
-  // svd_.compute(J_.data, Eigen::ComputeThinU | Eigen::ComputeThinV);
-  
+  if (use_jacobian_inverse_)
+  {
+    svd_.compute(J_.data, Eigen::ComputeThinU | Eigen::ComputeThinV);
+  }
+
   end_time = ros::Time::now();
   their_ik_time = (end_time - start_time).toSec();
   start_time = end_time;
@@ -577,13 +588,12 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
     //position control on that dof
     tau_(i) = 0;
     for (unsigned int j = 0 ; j < 6 ; j++) {
-      if (true || isForceTorqueArray_[j])
+      if (!use_jacobian_inverse_ || isForceTorqueArray_[j])
       {
         tau_(i) += J_(j,i) * F_(j);
       }
       else
       {
-        ROS_ERROR("Should not get here. We have disabled ik for now");
         // svd_.singularValues.length is 6, since we have more joints than dof
         for (unsigned int k = 0; k < 6; k++)
         {
