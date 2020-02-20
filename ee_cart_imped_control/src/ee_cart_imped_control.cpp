@@ -237,7 +237,7 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   if (!n.getParam("cartesian_dampening", cartesian_dampening))
   {
     double default_cartesian_dampening = 10;
-    ROS_WARN("No cartesian_dampening given in namespace: %s. Defaulting to %f.)",
+    ROS_WARN("No cartesian_dampening given in namespace: %s. Defaulting to %f.",
         n.getNamespace().c_str(), default_cartesian_dampening);
     cartesian_dampening.clear();
     for (int i = 0; i< 3; i++) {
@@ -252,7 +252,7 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   if (!n.getParam("euler_angle_dampening", euler_angle_dampening))
   {
     double default_euler_angle_dampening = 1;
-    ROS_WARN("No euler_angle_dampening given in namespace: %s. Defaulting to %f.)",
+    ROS_WARN("No euler_angle_dampening given in namespace: %s. Defaulting to %f.",
         n.getNamespace().c_str(), default_euler_angle_dampening);
     euler_angle_dampening.clear();
     for (int i = 0; i< 3; i++) {
@@ -266,16 +266,23 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   if (!n.getParam("default_stiffness", default_stiffness_))
   {
     double default_default_stiffness = 1000;
-    ROS_WARN("No default_stiffness given in namespace: %s. Defaulting to %f.)",
+    ROS_WARN("No default_stiffness given in namespace: %s. Defaulting to %f.",
         n.getNamespace().c_str(), default_default_stiffness);
     default_stiffness_ = default_default_stiffness;
   }
   if (!n.getParam("default_rotational_stiffness", default_rotational_stiffness_))
   {
     double default_default_rotational_stiffness = 1000;
-    ROS_WARN("No default_rotational_stiffness given in namespace: %s. Defaulting to %f.)",
+    ROS_WARN("No default_rotational_stiffness given in namespace: %s. Defaulting to %f.",
         n.getNamespace().c_str(), default_default_rotational_stiffness);
     default_rotational_stiffness_ = default_default_rotational_stiffness;
+  }
+  if (!n.getParam("joint_dampening", joint_dampening_))
+  {
+    double default_joint_dampening = 0.5;
+    ROS_WARN("No joint_dampening given in namespace: %s. Defaulting to %f.",
+        n.getNamespace().c_str(), default_joint_dampening);
+    joint_dampening_ = default_joint_dampening;
   }
 
   // Store the hardware_interface handle for later use (to get time)
@@ -590,11 +597,10 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
     }
   }
 
-  double joint_dampening = 0.5;
   // Joint-level dampening
   for (int i = 0; i < joints_.size(); i++)
   {
-    tau_(i) -= qdot_.qdot(i) * joint_dampening;
+    tau_(i) -= qdot_.qdot(i) * joint_dampening_;
   }
   
   end_time = ros::Time::now();

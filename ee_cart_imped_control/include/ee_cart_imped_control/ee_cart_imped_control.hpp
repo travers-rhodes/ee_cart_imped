@@ -114,6 +114,9 @@ namespace ee_cart_imped_control_ns {
     double default_stiffness_;
     // The default rotational stiffness (used when controller freezes)
     double default_rotational_stiffness_;
+    // The coefficient of the joint-level dampening term
+    // (Maybe we can set this to zero because there's a lot of friction on joints)
+    double joint_dampening_;
 
     ///The time at which the goal we saw on the last iteration was started
     //Referenced only in update loop
