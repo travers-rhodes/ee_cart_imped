@@ -284,13 +284,19 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
         n.getNamespace().c_str(), default_joint_dampening);
     joint_dampening_ = default_joint_dampening;
   }
-  
   if (!n.getParam("use_jacobian_inverse", use_jacobian_inverse_))
   {
     bool default_use_jacobian_inverse= false;
     ROS_WARN("No use_jacobian_inverse given in namespace: %s. Defaulting to %d.",
         n.getNamespace().c_str(), default_use_jacobian_inverse);
     use_jacobian_inverse_ = default_use_jacobian_inverse;
+  }
+  if (!n.getParam("least_squares_dampening", least_squares_dampening_) && use_jacobian_inverse_)
+  {
+    double default_least_squares_dampening = 0.0001;
+    ROS_WARN("No least_squares_dampening given in namespace: %s. Defaulting to %f.",
+        n.getNamespace().c_str(), default_least_squares_dampening);
+    least_squares_dampening_ = default_least_squares_dampening;
   }
 
   // Store the hardware_interface handle for later use (to get time)
@@ -600,7 +606,7 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
            if (svd_.singularValues()[k] > 0.0001){
              // https://www.math.ucsd.edu/~sbuss/ResearchWeb/ikmethods/iksurvey.pdf
              // damped least squares
-             tau_(i) += svd_.matrixV()(i,k) * svd_.singularValues()[k]/(svd_.singularValues()[k]*svd_.singularValues()[k]+1) * svd_.matrixU()(j,k) * F_(j);
+             tau_(i) += svd_.matrixV()(i,k) * svd_.singularValues()[k]/(svd_.singularValues()[k]*svd_.singularValues()[k]+least_squares_dampening_) * svd_.matrixU()(j,k) * F_(j);
            }  
         }
       }

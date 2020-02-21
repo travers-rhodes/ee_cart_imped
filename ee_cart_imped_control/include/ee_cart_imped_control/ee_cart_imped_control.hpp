@@ -120,6 +120,9 @@ namespace ee_cart_imped_control_ns {
     // Whether to use jacobian inverse (true) (slower) or the jacobian transpose 
     // for dimensions with a target position instead of a target force 
     bool use_jacobian_inverse_;
+    // If you are using jacobian inverse, this term gives the least squares
+    // dampening of the computed torques.
+    double least_squares_dampening_;
 
     ///The time at which the goal we saw on the last iteration was started
     //Referenced only in update loop
