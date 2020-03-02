@@ -7,5 +7,5 @@ gen3_cart_imped_controller:
   joint_dampening: 0.5
   default_stiffness: 1000
   default_rotational_stiffness: 1000
-  cartesian_dampening: [0.5,0.5,0.5]
-  euler_angle_dampening: [0.1,0.1,0.1]
+  cartesian_dampening: [5,5,5] # dampening when position-controlled dimensions XYZ
+  euler_angle_dampening: [10,10,10] # dampening when orientation-controlled dimensions RPY 
