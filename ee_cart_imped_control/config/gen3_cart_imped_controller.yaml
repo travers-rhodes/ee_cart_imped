@@ -2,10 +2,10 @@ gen3_cart_imped_controller:
   type: ee_cart_imped_control/EECartImpedControlPlugin
   root_name: base_link 
   tip_name: bracelet_link 
-  use_jacobian_inverse: true
+  use_jacobian_inverse: false
   least_squares_dampening: 0.0
-  joint_dampening: 0.5
+  joint_dampening: 0.1
   default_stiffness: 1000
   default_rotational_stiffness: 1000
-  cartesian_dampening: [5,5,5] # dampening when position-controlled dimensions XYZ
-  euler_angle_dampening: [10,10,10] # dampening when orientation-controlled dimensions RPY 
+  cartesian_dampening: [0.7,0.7,0.7] # dampening when position-controlled dimensions XYZ
+  euler_angle_dampening: [0.5,0.5,0.5] # dampening when orientation-controlled dimensions RPY 

@@ -1,5 +1,6 @@
 gen3_cart_imped_controller:
   gen3_cart_imped_action_node:
+    root_name: base_link
     constraints:
       goal:
         time: 0.0

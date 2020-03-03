@@ -38,9 +38,9 @@ EECartImpedControlClass::sampleInterpolation(const ros::Time& current_time) {
     return last_point_;
   }
   if (last_goal_starting_time_ != current_goal_start_time.toSec()) {
-    //we have never seen this goal before
+    // we have never seen this goal before
+    // so our "previous point" is whatever we listed as the initial_point in commandCB
     last_point_ = initial_point;
-    last_point_.time_from_start = ros::Duration(0);
   }
   last_goal_starting_time_ = current_goal_start_time.toSec();
 
@@ -93,13 +93,8 @@ EECartImpedControlClass::sampleInterpolation(const ros::Time& current_time) {
   ee_cart_imped_msgs::StiffPoint start_point;
   const ee_cart_imped_msgs::StiffPoint &end_point = 
     desiredPoses[current_goal_index];
-  //actually now last_point_ and initial point should be the
-  //same if current_goal_index is zero
-  if (current_goal_index == 0) {
-    start_point = initial_point;
-  } else { 
-    start_point = last_point_;
-  }
+
+  start_point = last_point_;
 
   double segStartTime = 0.0;
   if (current_goal_index > 0) {
@@ -195,6 +190,12 @@ void EECartImpedControlClass::commandCB
 
   fksolver.JntToCart(q0, init_pos);
 
+  // we need to initalize all the force/torques too.
+  // the way to do this with the fewest lines of code is to copy construct and then overwrite
+  // note there is at least one point in the trajectory or else we would
+  // have short-circuited earlier
+  new_traj.initial_point = msg->trajectory[0];
+  new_traj.initial_point.time_from_start = ros::Duration(0);
   new_traj.initial_point.pose.position.x = init_pos.p(0);
   new_traj.initial_point.pose.position.y = init_pos.p(1);
   new_traj.initial_point.pose.position.z = init_pos.p(2);
