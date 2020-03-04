@@ -52,6 +52,8 @@ namespace ee_cart_imped_control_ns {
     /// The chain of links and joints in KDL language
     // Read-only after initialization
     KDL::Chain kdl_chain_;
+    // the chain used to get to the elbow of the robot (to keep elbow as high as possible)
+    KDL::Chain kdl_elbow_chain_;
     
     /// KDL Solver performing the joint angles to Cartesian pose calculation
     // Referenced only in update loop
@@ -60,6 +62,12 @@ namespace ee_cart_imped_control_ns {
     // Referenced only in update loop
     boost::scoped_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver_;
     boost::scoped_ptr<KDL::ChainDynParam> kdl_chain_dyn_param_;
+    boost::scoped_ptr<KDL::ChainFkSolverPos>    jnt_to_pose_solver_elbow_;
+    boost::scoped_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver_elbow_;
+    // the number of joints in the chain from base to elbow
+    int elbow_chain_len_;
+    // the upward (z) force to apply to the elbow joint (to disambiguate 7DOF's extra DOF)
+    double elbow_z_force_;
 
     /// KDL gravity compensation helpers
     // gravity, relative to KDL chain base link
@@ -80,6 +88,9 @@ namespace ee_cart_imped_control_ns {
     /// Joint torques   
     // Referenced only in update loop
     KDL::JntArray  tau_, tau_act_;
+   
+    // the first elbow_chain_len_ number of joints in q_; 
+    KDL::JntArray  q_elbow_; 
     
     /// Tip pose
     // Referenced only in update loop
@@ -87,6 +98,11 @@ namespace ee_cart_imped_control_ns {
     /// Tip desired pose          
     // Referenced only in update loop
     KDL::Frame     xd_;
+
+    // true if we have a single torque axis specified. False otherwise
+    bool is_torque_axis_specified_;
+    // our single specified torque axis (if specified)
+    KDL::Vector specified_torque_axis_;
     
     /// Cartesian error
     // Referenced only in update loop
@@ -103,6 +119,8 @@ namespace ee_cart_imped_control_ns {
     /// Jacobian
     // Referenced only in update loop
     KDL::Jacobian  J_;         
+    /// Elbow Jacobian
+    KDL::Jacobian  J_elbow_;         
 
     Eigen::JacobiSVD<Eigen::MatrixXd, Eigen::HouseholderQRPreconditioner> svd_;
 
@@ -237,7 +255,7 @@ namespace ee_cart_imped_control_ns {
      */
     void hold_current_pose(const ros::Time& time);
 
-    bool constructKDLChain(std::string root, std::string tip, std::string robot_desc_string);
+    bool constructKDLChain(std::string root, std::string tip, std::string robot_desc_string, KDL::Chain& kdl_chain);
 
   public:
     /**

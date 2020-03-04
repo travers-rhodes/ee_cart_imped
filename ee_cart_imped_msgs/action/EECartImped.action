@@ -19,6 +19,10 @@ ee_cart_imped_msgs/StiffPoint[] goal
 ee_cart_imped_msgs/StiffPoint initial_point
 ee_cart_imped_msgs/StiffPoint desired
 ee_cart_imped_msgs/StiffPoint actual_pose
+geometry_msgs/Vector3 pose_error_position
+geometry_msgs/Vector3 pose_error_rotation
+geometry_msgs/Vector3 pose_velocity_position
+geometry_msgs/Vector3 pose_velocity_rotation
 float64 effort_sq_error
 float64[] requested_joint_efforts
 float64[] actual_joint_efforts

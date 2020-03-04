@@ -178,6 +178,18 @@ void EECartImpedControlClass::commandCB
     hold_current_pose(time_now);
     return;
   }
+ 
+  for (int i = 0; i < msg->trajectory.size(); i++) {
+    // if any are specified AND there are not an odd number specified
+    if ((msg->trajectory[i].isTorqueX || msg->trajectory[i].isTorqueY || msg->trajectory[i].isTorqueZ) 
+        && !(msg->trajectory[i].isTorqueX ^ msg->trajectory[i].isTorqueY ^ msg->trajectory[i].isTorqueZ)) 
+    {
+      ROS_ERROR("You must specify either 0, 1, or 3 axes for torque control. Maintaining current pose. The point at index %d in your trajectory was incorrect.", i);
+      ros::Time time_now = ros::Time::now();
+      hold_current_pose(time_now);
+      return;
+    }
+  }
 
   EECartImpedData &new_traj = *new_traj_ptr;
   KDL::Frame init_pos;
@@ -220,7 +232,7 @@ void EECartImpedControlClass::commandCB
 bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *robot,
     ros::NodeHandle &n) {
   ROS_INFO("Started initializing control class");
-  std::string root_name, tip_name;
+  std::string root_name, tip_name, elbow_name, robot_desc_string;
   node_ = n;
   if (!n.getParam("root_name", root_name))
   {
@@ -231,6 +243,18 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   if (!n.getParam("tip_name", tip_name))
   {
     ROS_ERROR("No tip name given in namespace: %s)",
+        n.getNamespace().c_str());
+    return false;
+  }
+  if (!n.getParam("elbow_name", elbow_name))
+  {
+    ROS_ERROR("No elbow name given in namespace: %s)",
+        n.getNamespace().c_str());
+    return false;
+  }
+  if (!n.getParam("elbow_z_force", elbow_z_force_))
+  {
+    ROS_ERROR("No elbow z force given in namespace: %s)",
         n.getNamespace().c_str());
     return false;
   }
@@ -310,14 +334,33 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   urdf_robot.initParam("/robot_description");
 
   ROS_INFO("Constructing KDL chain");
-  // Constructs kdl_chain_ parameter and joints_ parameter
-  std::string robot_desc_string;
+  // Constructs kdl_chain_ parameter
   n.getParam("/robot_description", robot_desc_string);
-  if (!constructKDLChain(root_name, tip_name, robot_desc_string)) {
+  if (!constructKDLChain(root_name, tip_name, robot_desc_string, kdl_chain_)) {
     ROS_ERROR("Couldn't construct chain from %s to %s.)",
         root_name.c_str(), tip_name.c_str());
     return false;
   }
+  
+  ROS_INFO("Constructing KDL chain for elbow");
+  // Constructs kdl_chain_ parameter
+  if (!constructKDLChain(root_name, elbow_name, robot_desc_string, kdl_elbow_chain_)) {
+    ROS_ERROR("Couldn't construct chain from %s to %s.)",
+        root_name.c_str(), elbow_name.c_str());
+    return false;
+  }
+  
+  // constructs joints_ parameter
+  // Pulls out all the JointHandles and save them to our vector
+  joints_.clear();
+  for (size_t i=0; i<kdl_chain_.getNrOfSegments(); i++){
+    if (kdl_chain_.getSegment(i).getJoint().getType() != KDL::Joint::None){ 
+      hardware_interface::JointHandle jnt = hardware_interface_->getHandle(kdl_chain_.getSegment(i).getJoint().getName());
+      joints_.push_back(jnt);
+    }
+  }
+  ROS_DEBUG("Added %i joints", int(joints_.size()));
+
  
   // TODO: Pull this from KDLChain somehow
   std::vector<std::string> joint_names = {
@@ -362,6 +405,9 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   // Construct the kdl solvers in non-realtime
   jnt_to_pose_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
   jnt_to_jac_solver_.reset(new KDL::ChainJntToJacSolver(kdl_chain_));
+  jnt_to_pose_solver_elbow_.reset(new KDL::ChainFkSolverPos_recursive(kdl_elbow_chain_));
+  jnt_to_jac_solver_elbow_.reset(new KDL::ChainJntToJacSolver(kdl_elbow_chain_));
+  elbow_chain_len_ = kdl_elbow_chain_.getNrOfJoints();
 
   grav_vector_ = KDL::Vector(0., 0., -9.81);
   kdl_chain_dyn_param_.reset(new KDL::ChainDynParam(kdl_chain_, grav_vector_));
@@ -373,6 +419,8 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   tau_act_.resize(kdl_chain_.getNrOfJoints());
   J_.resize(kdl_chain_.getNrOfJoints());
   jnt_gravity_.resize(kdl_chain_.getNrOfJoints());
+  q_elbow_.resize(elbow_chain_len_);
+  J_elbow_.resize(elbow_chain_len_);
 
   subscriber_ = node_.subscribe("command", 1, &EECartImpedControlClass::commandCB, this);
   controller_state_publisher_.reset
@@ -476,6 +524,11 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
     qdot_.q(i) = joints_[i].getPosition();
     qdot_.qdot(i) = joints_[i].getVelocity();
   }
+  
+  for (int i = 0; i < elbow_chain_len_; i++)
+  {
+    q_elbow_(i) = joints_[i].getPosition();
+  }
 
   // Compute the forward kinematics and Jacobian (at this location)
   jnt_to_pose_solver_->JntToCart(q_, x_);
@@ -489,6 +542,28 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
   }
 
   ee_cart_imped_msgs::StiffPoint desiredPose = sampleInterpolation(time);
+
+  is_torque_axis_specified_ = false;
+  // if any of the torques are specified and not all of the torques are specified
+  // then we have a single torque axis (we don't allow exactly two torque axes to be specified)
+  if ((desiredPose.isTorqueX || desiredPose.isTorqueY || desiredPose.isTorqueZ)
+      && !(desiredPose.isTorqueX && desiredPose.isTorqueY && desiredPose.isTorqueZ))
+  {
+    is_torque_axis_specified_ = true;
+    if (desiredPose.isTorqueX) {
+      specified_torque_axis_.x(1); 
+      specified_torque_axis_.y(0); 
+      specified_torque_axis_.z(0); 
+    } else if (desiredPose.isTorqueY) {
+      specified_torque_axis_.x(0); 
+      specified_torque_axis_.y(1); 
+      specified_torque_axis_.z(0); 
+    } else if (desiredPose.isTorqueZ) {
+      specified_torque_axis_.x(0); 
+      specified_torque_axis_.y(0); 
+      specified_torque_axis_.z(1); 
+    } 
+  }
 
 
   Fdes_(0) = desiredPose.wrench_or_stiffness.force.x;
@@ -515,9 +590,33 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
 
   // Calculate a Cartesian restoring force.
   xerr_.vel = x_.p - xd_.p;
-  xerr_.rot = 0.5 * (xd_.M.UnitX() * x_.M.UnitX() +
-      xd_.M.UnitY() * x_.M.UnitY() +
-      xd_.M.UnitZ() * x_.M.UnitZ());  // I have no idea what this is
+  // Calculate the angle error. I would calculate this as
+  if (is_torque_axis_specified_) {
+    ////////////
+    // if exactly one torque axis is specified
+    ////////////
+    // if you have a torque axis you want to rotate around, 
+    // then we want to align that torque axis in the current frame
+    // with that torque axis in the deisred frame
+    // so that you can freely spin around that torque axis
+    // That is, the "desired orientation," when specifying a torque axis, is to have the current frame match the desired frame __along the torque axis__
+    // KDL::Vector torque_axis_in_global_frame_written_in_desired_frame = xd_.M.Inverse()*torque_axis_in_global_frame;
+    // KDL::Vector the_location_of_that_axis_currently_written_in_global_frame = x_.M*torque_axis_in_global_frame_written_in_desired_frame;
+    // KDL::Vector the_error_between_desired_and_this_current = torque_axis_in_global_frame (cross product) the_location_of_that_axis_currently_written_in_global_frame;
+    // which simplifies down to (parentheses added to make matrix multiplication faster)
+    // (noting that vector * vector is cross product for KDL)
+    xerr_.rot = specified_torque_axis_ * (x_.M*(xd_.M.Inverse()*specified_torque_axis_));
+  } else {
+    ////////
+    // if all axes are torque-based, then xerr_ never gets used anyway.
+    ////////
+    // use the default already coded up by MIT people
+    // 1/2 the sum of torques needed to align each axes.
+    // (remembering that * is the cross product for KDL vectors)
+    xerr_.rot = 0.5 * (xd_.M.UnitX() * x_.M.UnitX() +
+        xd_.M.UnitY() * x_.M.UnitY() +
+        xd_.M.UnitZ() * x_.M.UnitZ()); 
+  } 
 
 
   // F_ is a vector of forces/wrenches corresponding to x, y, z, tx,ty,tz,tw
@@ -613,6 +712,15 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
       }
     }
   }
+  
+  // Add an upward-pulling force to the elbow
+  // First compute elbow jacobian
+  jnt_to_jac_solver_elbow_->JntToJac(q_elbow_, J_elbow_);
+  // Then, add associated forces
+  for (unsigned int i = 0 ; i < elbow_chain_len_ ; i++) {
+    // The third row (zero-indexed at 2) is the z direction jacobian
+    tau_(i) += J_elbow_(2,i) * elbow_z_force_;
+  }
 
   // Joint-level dampening
   for (int i = 0; i < joints_.size(); i++)
@@ -680,6 +788,20 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
       controller_state_publisher_->msg_.actual_pose.
         wrench_or_stiffness.torque.z = F_(5);
 
+      controller_state_publisher_->msg_.pose_error_position.x = xerr_(0);
+      controller_state_publisher_->msg_.pose_error_position.y = xerr_(1);
+      controller_state_publisher_->msg_.pose_error_position.z = xerr_(2);
+      controller_state_publisher_->msg_.pose_error_rotation.x = xerr_(3);
+      controller_state_publisher_->msg_.pose_error_rotation.y = xerr_(4);
+      controller_state_publisher_->msg_.pose_error_rotation.z = xerr_(5);
+
+      controller_state_publisher_->msg_.pose_velocity_position.x = xdot_(0);
+      controller_state_publisher_->msg_.pose_velocity_position.y = xdot_(1);
+      controller_state_publisher_->msg_.pose_velocity_position.z = xdot_(2);
+      controller_state_publisher_->msg_.pose_velocity_rotation.x = xdot_(3);
+      controller_state_publisher_->msg_.pose_velocity_rotation.y = xdot_(4);
+      controller_state_publisher_->msg_.pose_velocity_rotation.z = xdot_(5);
+
       // read the actual current effort
       // this could be pulled into the loop below, but who cares.
       for (int i = 0; i < joints_.size(); i++)
@@ -723,7 +845,7 @@ void EECartImpedControlClass::stopping(const ros::Time& time) {
 
 // COPIED FROM pr2_mechanism_model::Chain
 // fills out kdl_chain_ variable and joints_ variable
-bool EECartImpedControlClass::constructKDLChain(std::string root, std::string tip, std::string robot_desc_string) {
+bool EECartImpedControlClass::constructKDLChain(std::string root, std::string tip, std::string robot_desc_string, KDL::Chain& kdl_chain) {
   // Constructs the kdl chain
   KDL::Tree kdl_tree;
   bool waitLoop = true;
@@ -739,7 +861,7 @@ bool EECartImpedControlClass::constructKDLChain(std::string root, std::string ti
 
   bool res;
   try{
-    res = kdl_tree.getChain(root, tip, kdl_chain_);
+    res = kdl_tree.getChain(root, tip, kdl_chain);
   }
   catch(...){
     res = false;
@@ -749,16 +871,6 @@ bool EECartImpedControlClass::constructKDLChain(std::string root, std::string ti
         root.c_str(), tip.c_str());
     return false;
   }
-
-  // Pulls out all the JointHandles and save them to our vector
-  joints_.clear();
-  for (size_t i=0; i<kdl_chain_.getNrOfSegments(); i++){
-    if (kdl_chain_.getSegment(i).getJoint().getType() != KDL::Joint::None){ 
-      hardware_interface::JointHandle jnt = hardware_interface_->getHandle(kdl_chain_.getSegment(i).getJoint().getName());
-      joints_.push_back(jnt);
-    }
-  }
-  ROS_DEBUG("Added %i joints", int(joints_.size()));
 
   return true;
 }
