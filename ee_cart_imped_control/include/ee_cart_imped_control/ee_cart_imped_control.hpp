@@ -62,12 +62,21 @@ namespace ee_cart_imped_control_ns {
     // Referenced only in update loop
     boost::scoped_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver_;
     boost::scoped_ptr<KDL::ChainDynParam> kdl_chain_dyn_param_;
-    boost::scoped_ptr<KDL::ChainFkSolverPos>    jnt_to_pose_solver_elbow_;
+
     boost::scoped_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver_elbow_;
     // the number of joints in the chain from base to elbow
     int elbow_chain_len_;
     // the upward (z) force to apply to the elbow joint (to disambiguate 7DOF's extra DOF)
-    double elbow_z_force_;
+    KDL::Vector elbow_z_force_;
+    // used to compute which direction the elbow can freely spin without moving wrist
+    KDL::Frame base_to_shoulder_, base_to_elbow_, base_to_wrist_;
+    KDL::Vector shoulder_to_wrist_, shoulder_to_elbow_;
+    // The direction the elbow can move instantaneously without moving the wrist
+    // it's nice that the Kinova arm has such clean kinematics, though I guess
+    // we could maybe compute this if we had to for other arms...
+    KDL::Vector free_elbow_motion_direction_;
+    // The force to apply on the elbow
+    KDL::Vector elbow_force_;
 
     /// KDL gravity compensation helpers
     // gravity, relative to KDL chain base link

@@ -8,6 +8,6 @@ gen3_cart_imped_controller:
   joint_dampening: 0.0
   default_stiffness: 1000
   default_rotational_stiffness: 1000
-  elbow_z_force: 2 # force pulling up on the elbow (N) to prefer a "good" (degenerate) 7dof state
+  elbow_z_force: 10 # force pulling up on the elbow (N) to prefer a "good" (degenerate) 7dof state
   cartesian_dampening: [0.1,0.1,0.1] # dampening when position-controlled dimensions XYZ
   euler_angle_dampening: [0.0,0.0,0.0] # dampening when orientation-controlled dimensions RPY # I don't trust the rotation velocity calculations

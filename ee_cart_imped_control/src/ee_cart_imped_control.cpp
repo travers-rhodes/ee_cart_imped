@@ -252,12 +252,14 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
         n.getNamespace().c_str());
     return false;
   }
-  if (!n.getParam("elbow_z_force", elbow_z_force_))
+  double elbow_z_force;
+  if (!n.getParam("elbow_z_force", elbow_z_force))
   {
     ROS_ERROR("No elbow z force given in namespace: %s)",
         n.getNamespace().c_str());
     return false;
   }
+  elbow_z_force_ = KDL::Vector(0,0,elbow_z_force);
   std::vector<double> cartesian_dampening;
   if (!n.getParam("cartesian_dampening", cartesian_dampening))
   {
@@ -405,7 +407,6 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
   // Construct the kdl solvers in non-realtime
   jnt_to_pose_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
   jnt_to_jac_solver_.reset(new KDL::ChainJntToJacSolver(kdl_chain_));
-  jnt_to_pose_solver_elbow_.reset(new KDL::ChainFkSolverPos_recursive(kdl_elbow_chain_));
   jnt_to_jac_solver_elbow_.reset(new KDL::ChainJntToJacSolver(kdl_elbow_chain_));
   elbow_chain_len_ = kdl_elbow_chain_.getNrOfJoints();
 
@@ -713,13 +714,27 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
     }
   }
   
-  // Add an upward-pulling force to the elbow
+  // Add re-orienting force to the elbow
+  // This is should be in the direction that does not affect the wrist joint's position.
+  // That is, we compute
+  jnt_to_pose_solver_->JntToCart(q_, base_to_shoulder_, 2);
+  jnt_to_pose_solver_->JntToCart(q_, base_to_elbow_, 4);
+  jnt_to_pose_solver_->JntToCart(q_, base_to_wrist_, 6);
+  shoulder_to_wrist_ = base_to_wrist_.p - base_to_shoulder_.p;
+  shoulder_to_elbow_ = base_to_elbow_.p - base_to_shoulder_.p;
+  // Vector * Vector is the cross product in KDL
+  free_elbow_motion_direction_ = shoulder_to_elbow_ * shoulder_to_wrist_;
+  // Normalize modifies vector in place
+  free_elbow_motion_direction_.Normalize();
+  elbow_force_ = dot(free_elbow_motion_direction_, elbow_z_force_) * free_elbow_motion_direction_ ;
+
   // First compute elbow jacobian
   jnt_to_jac_solver_elbow_->JntToJac(q_elbow_, J_elbow_);
   // Then, add associated forces
   for (unsigned int i = 0 ; i < elbow_chain_len_ ; i++) {
-    // The third row (zero-indexed at 2) is the z direction jacobian
-    tau_(i) += J_elbow_(2,i) * elbow_z_force_;
+    for (unsigned int j = 0 ; j < 3; j++) {
+      tau_(i) += J_elbow_(j,i) * elbow_force_(j);
+    }
   }
 
   // Joint-level dampening
@@ -801,6 +816,10 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
       controller_state_publisher_->msg_.pose_velocity_rotation.x = xdot_(3);
       controller_state_publisher_->msg_.pose_velocity_rotation.y = xdot_(4);
       controller_state_publisher_->msg_.pose_velocity_rotation.z = xdot_(5);
+      
+      controller_state_publisher_->msg_.elbow_force.x = elbow_force_(0);
+      controller_state_publisher_->msg_.elbow_force.y = elbow_force_(1);
+      controller_state_publisher_->msg_.elbow_force.z = elbow_force_(2);
 
       // read the actual current effort
       // this could be pulled into the loop below, but who cares.
