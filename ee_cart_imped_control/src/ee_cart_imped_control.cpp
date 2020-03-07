@@ -165,6 +165,7 @@ void EECartImpedControlClass::commandCB
 (const ee_cart_imped_msgs::EECartImpedGoalConstPtr &msg) {
   if ((msg->trajectory).empty()) {
     //stop the controller
+    ROS_INFO("EECartImpedController received empty trajectory, so stopping arm abruptly");
     ros::Time time_now = ros::Time::now();
     hold_current_pose(time_now);
     return;
@@ -472,7 +473,7 @@ void EECartImpedControlClass::hold_current_pose(const ros::Time& current_time) {
   ///Hold current position trajectory
   boost::shared_ptr<EECartImpedData> hold_traj_ptr(new EECartImpedData());
   if (!hold_traj_ptr) {
-    ROS_ERROR("While starting, trajectory pointer was null");
+    ROS_ERROR("While holding pose, trajectory pointer was null");
     return;
   }
   EECartImpedData &hold_traj = *hold_traj_ptr;
@@ -500,8 +501,9 @@ void EECartImpedControlClass::hold_current_pose(const ros::Time& current_time) {
   hold_traj.traj[0].time_from_start = ros::Duration(0);
   hold_traj.initial_point = hold_traj.traj[0];
   hold_traj.starting_time = ros::Time::now();
+  ROS_INFO("ee_cart_imped: Holding pose at %f, %f, %f", init_pos.p(0), init_pos.p(1), init_pos.p(2));
   if (!hold_traj_ptr) {
-    ROS_ERROR("During starting hold trajectory was null after filling");
+    ROS_ERROR("Hold trajectory was null after filling");
     return;
   }
   //Pass the trajectory through to the update loop
@@ -715,15 +717,15 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
   }
   
   // Add re-orienting force to the elbow
-  // This is should be in the direction that does not affect the wrist joint's position.
-  // That is, we compute
+  // This is should be in the direction that does not affect the wrist joint's position,
+  // since the wrist joint position stays fixed through any null-space motion,
+  // and since the distance between the elbow joint and the wrist joint is always the same
   jnt_to_pose_solver_->JntToCart(q_, base_to_shoulder_, 2);
   jnt_to_pose_solver_->JntToCart(q_, base_to_elbow_, 4);
   jnt_to_pose_solver_->JntToCart(q_, base_to_wrist_, 6);
   shoulder_to_wrist_ = base_to_wrist_.p - base_to_shoulder_.p;
-  shoulder_to_elbow_ = base_to_elbow_.p - base_to_shoulder_.p;
   // Vector * Vector is the cross product in KDL
-  free_elbow_motion_direction_ = shoulder_to_elbow_ * shoulder_to_wrist_;
+  free_elbow_motion_direction_ = base_to_wrist_.p * shoulder_to_wrist_;
   // Normalize modifies vector in place
   free_elbow_motion_direction_.Normalize();
   elbow_force_ = dot(free_elbow_motion_direction_, elbow_z_force_) * free_elbow_motion_direction_ ;

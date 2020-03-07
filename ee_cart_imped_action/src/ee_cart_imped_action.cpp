@@ -229,6 +229,7 @@ void EECartImpedExecuter::controllerStateCB
     result_.desired = msg->desired;
     result_.actual_pose = msg->actual_pose.pose;
     result_.effort_sq_error = msg->effort_sq_error;
+    ROS_ERROR("Action trajectory aborted because of violation of trajectory constraints");
     active_goal_.setAborted(result_);
     has_active_goal_ = false;
     ROS_WARN("Trajectory constraints violated: aborting!");
@@ -237,6 +238,8 @@ void EECartImpedExecuter::controllerStateCB
 
   ros::Time end_time = current_traj_.header.stamp +
     current_traj_.trajectory[current_traj_.trajectory.size()-1].time_from_start;
+  ROS_DEBUG("Now is %f. End_time is %f. time_from_start is %f", now.toSec(), end_time.toSec(),
+    current_traj_.trajectory[current_traj_.trajectory.size()-1].time_from_start.toSec());
   if (now >= end_time) {
     //are we at the goal?
     if (checkConstraints(msg, goal_constraints_,
@@ -245,10 +248,11 @@ void EECartImpedExecuter::controllerStateCB
       result_.desired = msg->desired;
       result_.actual_pose = msg->actual_pose.pose;
       result_.effort_sq_error = msg->effort_sq_error;
+      ROS_INFO("Action trajectory succeeded by meeting goal constraints");
       active_goal_.setSucceeded(result_);
       has_active_goal_ = false;
     } else if (now >= end_time + ros::Duration(goal_time_constraint_)) {
-      ROS_WARN("Did not make goal position");
+      ROS_WARN("Action trajectory did not make goal position");
       result_.success = false;
       result_.desired = msg->desired;
       result_.actual_pose = msg->actual_pose.pose;
