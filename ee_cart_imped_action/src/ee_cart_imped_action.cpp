@@ -5,7 +5,8 @@
 
 EECartImpedExecuter::EECartImpedExecuter(ros::NodeHandle &n) :
   node_(n),
-  action_server_(node_, "ee_cart_imped_action",
+  action_server_(node_, // node handle
+      "ee_cart_imped_action", // name of the action
       boost::bind(&EECartImpedExecuter::goalCB, this, _1),
       boost::bind(&EECartImpedExecuter::cancelCB, this, _1),
       false),

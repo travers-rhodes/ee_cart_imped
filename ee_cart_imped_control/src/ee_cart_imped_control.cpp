@@ -105,6 +105,7 @@ EECartImpedControlClass::sampleInterpolation(const ros::Time& current_time) {
     desiredPoses[current_goal_index].time_from_start.toSec();
   if (segEndTime <= segStartTime) {
     //just stay where we currently are
+    ROS_WARN("ee_cart_imped_control: Staying where we currently are!");
     next_point.pose.position.x = x_.p(0);
     next_point.pose.position.y = x_.p(1);
     next_point.pose.position.z = x_.p(2);
@@ -706,7 +707,7 @@ void EECartImpedControlClass::update(const ros::Time& time, const ros::Duration&
         // svd_.singularValues.length is 6, since we have more joints than dof
         for (unsigned int k = 0; k < 6; k++)
         {
-           if (svd_.singularValues()[k] > 0.0001){
+           if (svd_.singularValues()[k] >= 0.01){
              // https://www.math.ucsd.edu/~sbuss/ResearchWeb/ikmethods/iksurvey.pdf
              // damped least squares
              tau_(i) += svd_.matrixV()(i,k) * svd_.singularValues()[k]/(svd_.singularValues()[k]*svd_.singularValues()[k]+least_squares_dampening_) * svd_.matrixU()(j,k) * F_(j);

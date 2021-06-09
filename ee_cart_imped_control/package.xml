@@ -18,7 +18,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>geometry_msgs</depend>
   <depend>eigen</depend>
-  <depend>kdl</depend>
+  <depend>orocos_kdl</depend>
   <depend>controller_manager</depend>
   <depend>controller_interface</depend>
   <depend>pluginlib</depend>
