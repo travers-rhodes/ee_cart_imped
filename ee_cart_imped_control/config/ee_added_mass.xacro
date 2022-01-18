@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<robot name="ee_added_mass" xmlns:xacro="http://ros.org/wiki/xacro">
+  <!-- transformation from tool_frame to spoon_tip_frame-->
+  <xacro:macro name="gripper_to_ee_added_mass" params="prefix"> 
+    <!-- added mass in gripper to account for difference between urdf 
+         provided by kinova and documentation provided by kinova
+         (some of that mass explained by fact that fingers not included
+          in our mass calculation, but that doesn't explain all of it --> 
+    <link name="${prefix}ee_added_mass_link">  
+      <inertial>
+        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+        <!-- The value we pull from the URDF is 0.226520
+             The documentation says the whole gripper mass is 0.925
+             So, we need to add 0.698480-->
+        <mass value="0.698480" />
+        <!-- these inertia numbers are just made up, though (copied from the base gripper link)
+              however, I'm pretty sure we don't actually use these numbers in our gravity-compensation code -->
+        <inertia ixx="0.00020005" ixy="-4.2442E-10" ixz="-2.9069E-10" iyy="0.00017832" iyz="-3.4402E-08" izz="0.00013478" />
+      </inertial>
+    </link>
+
+    <joint name="${prefix}ee_added_mass_joint" type="fixed"> 
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" /> 
+        <parent link="${prefix}robotiq_arg2f_base_link" /> 
+        <child link="${prefix}ee_added_mass_link" /> 
+        <axis xyz="0 0 0" /> 
+    </joint>
+  </xacro:macro>
+</robot>
+

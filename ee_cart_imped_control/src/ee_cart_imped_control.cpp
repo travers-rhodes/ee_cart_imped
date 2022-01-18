@@ -354,18 +354,6 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
     return false;
   }
   
-  // constructs joints_ parameter
-  // Pulls out all the JointHandles and save them to our vector
-  joints_.clear();
-  for (size_t i=0; i<kdl_chain_.getNrOfSegments(); i++){
-    if (kdl_chain_.getSegment(i).getJoint().getType() != KDL::Joint::None){ 
-      hardware_interface::JointHandle jnt = hardware_interface_->getHandle(kdl_chain_.getSegment(i).getJoint().getName());
-      joints_.push_back(jnt);
-    }
-  }
-  ROS_DEBUG("Added %i joints", int(joints_.size()));
-
- 
   // TODO: Pull this from KDLChain somehow
   std::vector<std::string> joint_names = {
     "joint_1",
@@ -376,6 +364,17 @@ bool EECartImpedControlClass::init(hardware_interface::EffortJointInterface *rob
     "joint_6",
     "joint_7"
   };
+
+  // constructs joints_ parameter
+  // Pulls out all the JointHandles and save them to our vector
+  joints_.clear();
+  for (size_t i=0; i<joint_names.size(); i++){
+    if (kdl_chain_.getSegment(i).getJoint().getType() != KDL::Joint::None){ 
+      hardware_interface::JointHandle jnt = hardware_interface_->getHandle(kdl_chain_.getSegment(i).getJoint().getName());
+      joints_.push_back(jnt);
+    }
+  }
+  ROS_DEBUG("Added %i joints", int(joints_.size()));
 
   for (int i = 0; i < joint_names.size(); i++)
   {
@@ -893,6 +892,12 @@ bool EECartImpedControlClass::constructKDLChain(std::string root, std::string ti
         root.c_str(), tip.c_str());
     return false;
   }
+  ROS_ERROR("Loaded %d segments into the KDL chain", kdl_chain.getNrOfSegments());
+  for (int i = 0; i < kdl_chain.getNrOfSegments(); i++) {
+    ROS_ERROR("Segment %d has mass %f", i, kdl_chain.getSegment(i).getInertia().getMass());
+
+  }
+  ROS_ERROR("Loaded %d joints into the KDL chain", kdl_chain.getNrOfJoints());
 
   return true;
 }

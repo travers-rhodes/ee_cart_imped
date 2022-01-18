@@ -2,7 +2,7 @@ gen3_cart_imped_controller:
   type: ee_cart_imped_control/EECartImpedControlPlugin
   root_name: base_link 
   elbow_name: forearm_link 
-  tip_name: bracelet_link 
+  tip_name: ee_added_mass_link
   use_jacobian_inverse: true 
   least_squares_dampening: 0.001
   joint_dampening: 0.0
