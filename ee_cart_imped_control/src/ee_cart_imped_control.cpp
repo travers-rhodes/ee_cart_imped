@@ -895,7 +895,11 @@ bool EECartImpedControlClass::constructKDLChain(std::string root, std::string ti
   ROS_ERROR("Loaded %d segments into the KDL chain", kdl_chain.getNrOfSegments());
   for (int i = 0; i < kdl_chain.getNrOfSegments(); i++) {
     ROS_ERROR("Segment %d has mass %f", i, kdl_chain.getSegment(i).getInertia().getMass());
-
+    ROS_ERROR("Segment %d has COG: (%f,%f,%f)", 
+        i, 
+        kdl_chain.getSegment(i).getInertia().getCOG()[0],
+        kdl_chain.getSegment(i).getInertia().getCOG()[1],
+        kdl_chain.getSegment(i).getInertia().getCOG()[2]);
   }
   ROS_ERROR("Loaded %d joints into the KDL chain", kdl_chain.getNrOfJoints());
 

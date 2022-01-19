@@ -8,7 +8,12 @@
           in our mass calculation, but that doesn't explain all of it --> 
     <link name="${prefix}ee_added_mass_link">  
       <inertial>
-        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+        <!-- their inertia origin was at (0, 0, 0.03145) 
+          but it should be at (0, 0, 0.06000)
+          so we need to place our new, added mass at 
+        (0.06-0.03145)*0.226520/0.698480+0.06 = 0.069259-->
+        <origin xyz="0.0 0.0 0.069259" rpy="0 0 0" />
+
         <!-- The value we pull from the URDF is 0.226520
              The documentation says the whole gripper mass is 0.925
              So, we need to add 0.698480-->
